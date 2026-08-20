@@ -125,6 +125,7 @@ export function registerDashboardRoutes(server) {
               total: thisWeek.length,
               changePercent: percentChange(thisWeek.length, lastWeek.length),
               sparkline: sparkline(mine, addDays(selectedDate, -6)),
+              completedThisWeek: completedThisWeek.length,
             },
             revenue: {
               total: revenueThis,

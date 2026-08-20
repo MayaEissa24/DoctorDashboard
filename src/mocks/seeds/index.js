@@ -25,10 +25,6 @@ const CLINIC_ADDRESSES = [
   "Family Care Clinic, 6th of October",
 ];
 
-function photoUrl(seed, index = 1) {
-  return `https://i.pravatar.cc/150?img=${(index % 70) + 1}&u=${encodeURIComponent(seed)}`;
-}
-
 function doctorProfileExtras(item, index) {
   const year = 1976 + (index % 18);
   return {
@@ -108,7 +104,7 @@ function seedDoctors(server, specialties) {
       bio: item.bio,
       clinicName: item.clinicName,
       phone: item.phone,
-      photoUrl: photoUrl(item.photoSeed, index + 3),
+      photoUrl: null,
       experienceYears: item.experienceYears,
       consultationFee: item.consultationFee,
       rating: item.rating,
@@ -146,7 +142,7 @@ function seedPatients(server) {
     const patient = server.create("patient", {
       user,
       ...item,
-      photoUrl: photoUrl(item.fullName, index + 12),
+      photoUrl: null,
     });
 
     user.update({ patient });

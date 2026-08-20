@@ -8,10 +8,25 @@ export const DOCTOR_NAV_ITEMS = [
 
 function DoctorSidebar() {
   return (
-    <aside className="flex h-screen w-60 shrink-0 flex-col border-r border-slate-200 bg-white">
-      <div className="px-5 py-5 text-lg font-bold tracking-tight text-slate-900">Digital Hub</div>
+    <aside className="relative flex h-screen w-60 shrink-0 flex-col overflow-hidden bg-gradient-to-b from-[#0f2c66] via-[#1544a0] to-[#1d4ed8] text-white">
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.1]"
+        style={{
+          backgroundImage: "radial-gradient(circle at 1px 1px, #fff 1px, transparent 0)",
+          backgroundSize: "22px 22px",
+        }}
+      />
 
-      <nav className="flex-1 px-3">
+      <div className="relative flex items-center gap-2.5 px-5 py-5">
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/15">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 3v18M3 12h18" />
+          </svg>
+        </span>
+        <span className="text-lg font-bold tracking-tight">Digital Hub</span>
+      </div>
+
+      <nav className="relative flex-1 px-3">
         <ul className="flex flex-col gap-1">
           {DOCTOR_NAV_ITEMS.map((item) => (
             <li key={item.path}>
@@ -19,7 +34,7 @@ function DoctorSidebar() {
                 to={item.path}
                 className={({ isActive }) =>
                   `block rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                    isActive ? "bg-blue-50 text-blue-700" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"
+                    isActive ? "bg-white text-blue-700" : "text-white/75 hover:bg-white/10 hover:text-white"
                   }`
                 }
               >

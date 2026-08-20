@@ -7,10 +7,7 @@ function AuthLayout() {
   const isWide = !["/login", "/register"].includes(pathname);
 
   return (
-    <div
-      className="relative h-screen w-full overflow-hidden bg-white text-slate-900"
-      style={{ fontFamily: "'Plus Jakarta Sans', system-ui, sans-serif" }}
-    >
+    <div className="relative h-screen w-full overflow-hidden bg-white text-slate-900">
       <div
         className="hidden transition-[left] duration-700 ease-in-out md:absolute md:top-0 md:block md:h-full md:w-1/2"
         style={{ left: isRegister ? "50%" : "0%" }}
