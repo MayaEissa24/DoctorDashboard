@@ -1,5 +1,5 @@
 import { getDoctorStatus, getWorkingHours } from "../domain/doctors";
-import { isCompleted, isOngoing } from "../domain/status";
+import { isCompleted } from "../domain/status";
 import { getQuery } from "../utils/http";
 import { withGuards } from "../utils/handlers";
 import { addDays, getWeekRange, todayISO, weekdayLabel } from "../utils/dates";
@@ -25,6 +25,13 @@ function sparkline(appointments, fromDate) {
   return Array.from({ length: 7 }, (_, index) => {
     const date = addDays(fromDate, index);
     return appointmentsOnDate(appointments, date).length;
+  });
+}
+
+function sparklineForStatus(appointments, fromDate, predicate) {
+  return Array.from({ length: 7 }, (_, index) => {
+    const date = addDays(fromDate, index);
+    return appointmentsOnDate(appointments, date).filter(predicate).length;
   });
 }
 
@@ -62,23 +69,32 @@ export function registerDashboardRoutes(server) {
         const revenueLast = completedLastWeek.reduce((sum, item) => sum + Number(item.doctor?.consultationFee || 0), 0);
 
         const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        const hasAnyAppointments = mine.length > 0;
         const monthly = monthNames.map((month, monthIndex) => {
-          const items = clinicAppointments.filter((item) => new Date(`${item.date}T00:00:00`).getMonth() === monthIndex);
+          const items = mine.filter((item) => new Date(`${item.date}T00:00:00`).getMonth() === monthIndex);
           if (items.length === 0) {
+            if (!hasAnyAppointments) {
+              return { month, completed: 0, cancelled: 0, rescheduled: 0 };
+            }
             return {
               month,
               completed: 18 + monthIndex * 2,
-              ongoing: 6 + (monthIndex % 4),
-              rescheduled: 3 + (monthIndex % 3),
+              cancelled: 2 + (monthIndex % 3),
+              rescheduled: 3 + (monthIndex % 4),
             };
           }
           return {
             month,
             completed: items.filter((item) => isCompleted(item.status)).length,
-            ongoing: items.filter((item) => isOngoing(item.status)).length,
+            cancelled: countByStatus(items, "cancelled"),
             rescheduled: countByStatus(items, "rescheduled"),
           };
         });
+
+        const cancelledThisWeek = countByStatus(thisWeek, "cancelled");
+        const cancelledLastWeek = countByStatus(lastWeek, "cancelled");
+        const rescheduledThisWeek = countByStatus(thisWeek, "rescheduled");
+        const rescheduledLastWeek = countByStatus(lastWeek, "rescheduled");
 
         const popularDoctors = schema.doctors.all().models
           .map((item) => ({
@@ -139,11 +155,41 @@ export function registerDashboardRoutes(server) {
             },
           },
           appointmentStats: {
-            all: clinicAppointments.length,
-            cancelled: countByStatus(clinicAppointments, "cancelled"),
-            rescheduled: countByStatus(clinicAppointments, "rescheduled"),
-            completed: clinicAppointments.filter((item) => isCompleted(item.status)).length,
+            all: mine.length,
+            cancelled: countByStatus(mine, "cancelled"),
+            rescheduled: countByStatus(mine, "rescheduled"),
+            completed: mine.filter((item) => isCompleted(item.status)).length,
             monthly,
+            summary: [
+              {
+                key: "total",
+                label: "Total This Week",
+                value: thisWeek.length,
+                changePercent: percentChange(thisWeek.length, lastWeek.length),
+                sparkline: sparkline(mine, addDays(selectedDate, -6)),
+              },
+              {
+                key: "completed",
+                label: "Completed This Week",
+                value: completedThisWeek.length,
+                changePercent: percentChange(completedThisWeek.length, completedLastWeek.length),
+                sparkline: sparklineForStatus(mine, addDays(selectedDate, -6), (item) => isCompleted(item.status)),
+              },
+              {
+                key: "cancelled",
+                label: "Cancelled This Week",
+                value: cancelledThisWeek,
+                changePercent: percentChange(cancelledThisWeek, cancelledLastWeek),
+                sparkline: sparklineForStatus(mine, addDays(selectedDate, -6), (item) => item.status === "cancelled"),
+              },
+              {
+                key: "rescheduled",
+                label: "Rescheduled This Week",
+                value: rescheduledThisWeek,
+                changePercent: percentChange(rescheduledThisWeek, rescheduledLastWeek),
+                sparkline: sparklineForStatus(mine, addDays(selectedDate, -6), (item) => item.status === "rescheduled"),
+              },
+            ],
           },
           popularDoctors,
           calendar,

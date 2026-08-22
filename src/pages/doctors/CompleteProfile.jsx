@@ -2,18 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getDoctorProfile, getSpecialties, updateDoctorProfile } from "../../api/doctor.api";
 import { useAuth } from "../../auth/useAuth";
+import AvailabilityEditor from "../../components/doctor/AvailabilityEditor";
 import FormField from "../auth/FormField";
 import { MailIcon, MapPinIcon, UserIcon } from "../auth/icons";
-
-const WEEKDAYS = [
-  { dayOfWeek: 1, key: "monday", label: "Monday" },
-  { dayOfWeek: 2, key: "tuesday", label: "Tuesday" },
-  { dayOfWeek: 3, key: "wednesday", label: "Wednesday" },
-  { dayOfWeek: 4, key: "thursday", label: "Thursday" },
-  { dayOfWeek: 5, key: "friday", label: "Friday" },
-  { dayOfWeek: 6, key: "saturday", label: "Saturday" },
-  { dayOfWeek: 0, key: "sunday", label: "Sunday" },
-];
+import { WEEKDAYS } from "../../utils/weekdays";
 
 function IconBase({ children }) {
   return (
@@ -85,6 +77,8 @@ function CompleteProfile() {
   });
   const [photoUrl, setPhotoUrl] = useState("");
   const [selectedDays, setSelectedDays] = useState(new Set());
+  const [workingFrom, setWorkingFrom] = useState("09:00");
+  const [workingTo, setWorkingTo] = useState("17:00");
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState("");
@@ -114,9 +108,13 @@ function CompleteProfile() {
           lat: doctor.lat ?? "",
           lng: doctor.lng ?? "",
         });
-        setSelectedDays(
-          new Set((doctor.availableDays ?? []).filter((day) => !day.isOff).map((day) => day.dayOfWeek)),
-        );
+        const workingDays = (doctor.availableDays ?? []).filter((day) => !day.isOff);
+        setSelectedDays(new Set(workingDays.map((day) => day.dayOfWeek)));
+        const referenceSchedule = workingDays[0];
+        if (referenceSchedule) {
+          setWorkingFrom(referenceSchedule.from ?? "09:00");
+          setWorkingTo(referenceSchedule.to ?? "17:00");
+        }
         setSpecialties(departments ?? []);
       } catch {
         if (!cancelled) setFormError("We couldn't load your details. Please refresh the page.");
@@ -185,6 +183,7 @@ function CompleteProfile() {
         ...payload,
         ...(photoUrl ? { photoUrl } : {}),
         availableDays: WEEKDAYS.filter((day) => selectedDays.has(day.dayOfWeek)).map((day) => day.key),
+        workingHours: { from: workingFrom, to: workingTo },
         hasCompletedProfile: true,
       });
       updateUser({ hasCompletedProfile: true });
@@ -359,26 +358,14 @@ function CompleteProfile() {
         </div>
 
         <SectionDivider title="Appointment Schedule" />
-        <div className="flex flex-wrap gap-2">
-          {WEEKDAYS.map((day) => {
-            const active = selectedDays.has(day.dayOfWeek);
-            return (
-              <button
-                key={day.key}
-                type="button"
-                onClick={() => toggleDay(day.dayOfWeek)}
-                className={`rounded-lg border px-3.5 py-2 text-sm font-medium transition ${
-                  active
-                    ? "border-[#2563eb] bg-[#2563eb] text-white"
-                    : "border-slate-200 text-slate-500 hover:border-slate-300"
-                }`}
-              >
-                {day.label}
-              </button>
-            );
-          })}
-        </div>
-        <p className="mt-2 text-xs text-slate-400">Tap a day to mark it as a working day.</p>
+        <AvailabilityEditor
+          selectedDays={selectedDays}
+          onToggleDay={toggleDay}
+          from={workingFrom}
+          to={workingTo}
+          onFromChange={setWorkingFrom}
+          onToChange={setWorkingTo}
+        />
 
         <label className="mt-6 flex items-start gap-2.5 text-sm text-slate-600">
           <input

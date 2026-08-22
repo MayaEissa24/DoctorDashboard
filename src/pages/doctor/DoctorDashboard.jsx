@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { getDoctorDashboard } from "../../api/dashboard.api";
 import StatCard from "../../components/doctor/StatCard";
 import AppointmentRow from "../../components/doctor/AppointmentRow";
-import { CalendarIcon, ClockIcon, TrendingUpIcon } from "../../components/layout/nav-icons";
+import AppointmentStatsChart from "../../components/doctor/AppointmentStatsChart";
+import { CalendarIcon, ClockIcon, SwapIcon } from "../../components/layout/nav-icons";
 
 function IconBase({ children, size = 20 }) {
   return (
@@ -23,14 +24,6 @@ const XCircleIcon = (props) => (
   <IconBase {...props}>
     <circle cx="12" cy="12" r="8.5" />
     <path d="m9 9 6 6M15 9l-6 6" />
-  </IconBase>
-);
-
-const ListCheckIcon = (props) => (
-  <IconBase {...props}>
-    <path d="M4 6.5h7M4 12h7M4 17.5h4" />
-    <path d="m14.5 6.5 1.7 1.7L19.5 5" />
-    <path d="m14.5 17 1.7 1.7L19.5 15.5" />
   </IconBase>
 );
 
@@ -64,6 +57,13 @@ const DollarIcon = (props) => (
   </IconBase>
 );
 
+const SUMMARY_ICONS = {
+  total: CalendarIcon,
+  completed: CheckCircleIcon,
+  cancelled: XCircleIcon,
+  rescheduled: SwapIcon,
+};
+
 function formatDelta(delta) {
   if (delta === null) return undefined;
   if (delta > 0) return `+${delta} vs yesterday`;
@@ -78,40 +78,31 @@ function formatPercentChange(percent) {
 }
 
 function DoctorDashboard() {
-  const [data, setData] = useState(null);
-  const [status, setStatus] = useState("loading");
-  const [error, setError] = useState("");
-
-  const load = useCallback(async () => {
-    setStatus("loading");
-    setError("");
-
-    try {
+  const {
+    data,
+    status,
+    error,
+    refetch,
+  } = useQuery({
+    queryKey: ["doctor-dashboard"],
+    queryFn: async () => {
       const { data: dashboard } = await getDoctorDashboard();
-      setData(dashboard);
-      setStatus("success");
-    } catch (err) {
-      setError(err.response?.data?.message || "We couldn't load your dashboard. Please try again.");
-      setStatus("error");
-    }
-  }, []);
+      return dashboard;
+    },
+  });
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  if (status === "loading") {
+  if (status === "pending") {
     return <div className="flex h-64 items-center justify-center text-sm text-slate-400">Loading dashboard...</div>;
   }
 
   if (status === "error") {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-600">
-        <p>{error}</p>
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400">
+        <p>{error?.response?.data?.message || "We couldn't load your dashboard. Please try again."}</p>
         <button
           type="button"
-          onClick={load}
-          className="mt-3 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+          onClick={() => refetch()}
+          className="mt-3 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-900/50 dark:bg-slate-800 dark:hover:bg-red-950/30"
         >
           Try Again
         </button>
@@ -120,9 +111,6 @@ function DoctorDashboard() {
   }
 
   const todayCount = data?.todayAppointments ?? 0;
-  const weekCount = data?.stats?.appointments?.total ?? 0;
-  const weekChangePercent = data?.stats?.appointments?.changePercent;
-  const completedThisWeek = data?.stats?.appointments?.completedThisWeek ?? 0;
   const nextPatient = data?.nextPatient ?? null;
   const queue = data?.queue ?? [];
 
@@ -133,6 +121,9 @@ function DoctorDashboard() {
   const completedToday = data?.completedToday ?? 0;
   const revenueThisWeek = data?.stats?.revenue?.total ?? 0;
   const revenueChangePercent = data?.stats?.revenue?.changePercent;
+
+  const appointmentSummary = data?.appointmentStats?.summary ?? [];
+  const monthlyBreakdown = data?.appointmentStats?.monthly ?? [];
 
   const sparkline = data?.stats?.appointments?.sparkline ?? [];
   const yesterdayCount = sparkline.length >= 2 ? sparkline[sparkline.length - 2] : null;
@@ -146,12 +137,11 @@ function DoctorDashboard() {
   const confirmedShare = shareOfToday(confirmedToday);
   const cancelledShare = shareOfToday(cancelledToday);
   const pendingShare = shareOfToday(pendingToday);
-  const completionRateThisWeek = weekCount ? Math.round((completedThisWeek / weekCount) * 100) : null;
   const completionRateToday = todayCount ? Math.round((completedToday / todayCount) * 100) : null;
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Today's Appointments"
           value={todayCount}
@@ -159,20 +149,11 @@ function DoctorDashboard() {
           subtext={formatDelta(todayVsYesterday)}
         />
         <StatCard
-          label="This Week"
-          value={weekCount}
-          icon={<TrendingUpIcon size={20} />}
-          subtext={formatPercentChange(weekChangePercent)}
-        />
-        <StatCard
           label="Next Appointment"
           value={nextPatient ? nextPatient.timeLabel : "None"}
           icon={<ClockIcon size={20} />}
           subtext={nextPatient ? nextPatient.patient?.fullName : "No upcoming appointment"}
         />
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard
           label="Confirmed Today"
           value={confirmedToday}
@@ -185,15 +166,9 @@ function DoctorDashboard() {
           icon={<XCircleIcon size={20} />}
           subtext={cancelledShare === null ? undefined : `${cancelledShare}% of today's appointments`}
         />
-        <StatCard
-          label="Completed This Week"
-          value={completedThisWeek}
-          icon={<ListCheckIcon size={20} />}
-          subtext={completionRateThisWeek === null ? undefined : `${completionRateThisWeek}% completion rate`}
-        />
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Pending Confirmation"
           value={pendingToday}
@@ -218,11 +193,32 @@ function DoctorDashboard() {
         />
       </div>
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        <h2 className="mb-4 text-[15px] font-bold text-slate-900">Today's Appointments</h2>
+      {appointmentSummary.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {appointmentSummary.map((item) => {
+            const Icon = SUMMARY_ICONS[item.key] ?? CalendarIcon;
+            return (
+              <StatCard
+                key={item.key}
+                label={item.label}
+                value={item.value}
+                icon={<Icon size={20} />}
+                trend={item.changePercent}
+                trendLabel="in last 7 days"
+                sparklineData={item.sparkline}
+              />
+            );
+          })}
+        </div>
+      )}
+
+      <AppointmentStatsChart monthly={monthlyBreakdown} />
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        <h2 className="mb-4 text-[15px] font-bold text-slate-900 dark:text-slate-200">Today's Appointments</h2>
 
         {queue.length === 0 ? (
-          <p className="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm text-slate-400">
+          <p className="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm text-slate-400 dark:bg-slate-900/50">
             No appointments scheduled for today.
           </p>
         ) : (

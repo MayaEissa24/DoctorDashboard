@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { getDoctorProfile, getSpecialties, updateDoctorProfile } from "../../api/doctor.api";
+import AvailabilityEditor from "../../components/doctor/AvailabilityEditor";
 import { BadgeIcon, ClockIcon, MapPinIcon } from "../../components/layout/nav-icons";
 import FormField from "../auth/FormField";
 import { UserIcon } from "../auth/icons";
+import { WEEKDAYS } from "../../utils/weekdays";
 
 function IconBase({ children }) {
   return (
@@ -52,20 +54,10 @@ const CameraIcon = () => (
   </svg>
 );
 
-const WEEKDAYS = [
-  { dayOfWeek: 0, key: "sunday", label: "Sunday", short: "Sun" },
-  { dayOfWeek: 1, key: "monday", label: "Monday", short: "Mon" },
-  { dayOfWeek: 2, key: "tuesday", label: "Tuesday", short: "Tue" },
-  { dayOfWeek: 3, key: "wednesday", label: "Wednesday", short: "Wed" },
-  { dayOfWeek: 4, key: "thursday", label: "Thursday", short: "Thu" },
-  { dayOfWeek: 5, key: "friday", label: "Friday", short: "Fri" },
-  { dayOfWeek: 6, key: "saturday", label: "Saturday", short: "Sat" },
-];
-
 const STATUS_STYLES = {
-  working: { label: "Available", className: "bg-emerald-50 text-emerald-600" },
-  off_day: { label: "Day Off", className: "bg-slate-100 text-slate-500" },
-  on_leave: { label: "On Leave", className: "bg-amber-50 text-amber-600" },
+  working: { label: "Available", className: "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400" },
+  off_day: { label: "Day Off", className: "bg-slate-100 text-slate-500 dark:bg-slate-700 dark:text-slate-400" },
+  on_leave: { label: "On Leave", className: "bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-400" },
 };
 
 function formatTime12(time) {
@@ -89,9 +81,9 @@ function formatDate(isoDate) {
 
 function SectionCard({ title, action, children }) {
   return (
-    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
       <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-[15px] font-bold text-slate-900">{title}</h2>
+        <h2 className="text-[15px] font-bold text-slate-900 dark:text-slate-200">{title}</h2>
         {action}
       </div>
       {children}
@@ -102,19 +94,19 @@ function SectionCard({ title, action, children }) {
 function InfoRow({ icon, label, value }) {
   return (
     <div className="flex items-start gap-3 py-2.5">
-      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
+      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400">
         {icon}
       </span>
       <div className="min-w-0">
         <p className="text-xs text-slate-400">{label}</p>
-        <p className="truncate text-sm font-medium text-slate-800">{value || "Not provided"}</p>
+        <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-200">{value || "Not provided"}</p>
       </div>
     </div>
   );
 }
 
 function EmptyState({ text }) {
-  return <p className="rounded-lg bg-slate-50 px-4 py-6 text-center text-sm text-slate-400">{text}</p>;
+  return <p className="rounded-lg bg-slate-50 px-4 py-6 text-center text-sm text-slate-400 dark:bg-slate-900/50">{text}</p>;
 }
 
 function buildFormFromDoctor(doctor) {
@@ -144,6 +136,8 @@ function DoctorProfile() {
   const [form, setForm] = useState(null);
   const [photoUrl, setPhotoUrl] = useState("");
   const [selectedDays, setSelectedDays] = useState(new Set());
+  const [workingFrom, setWorkingFrom] = useState("09:00");
+  const [workingTo, setWorkingTo] = useState("17:00");
   const [formErrors, setFormErrors] = useState({});
   const [saveError, setSaveError] = useState("");
   const [isSaving, setIsSaving] = useState(false);
@@ -178,7 +172,11 @@ function DoctorProfile() {
     setFormErrors({});
     setForm(buildFormFromDoctor(doctor));
     setPhotoUrl("");
-    setSelectedDays(new Set((doctor.availableDays ?? []).filter((day) => !day.isOff).map((day) => day.dayOfWeek)));
+    const workingDays = (doctor.availableDays ?? []).filter((day) => !day.isOff);
+    setSelectedDays(new Set(workingDays.map((day) => day.dayOfWeek)));
+    const referenceSchedule = workingDays[0];
+    setWorkingFrom(referenceSchedule?.from ?? "09:00");
+    setWorkingTo(referenceSchedule?.to ?? "17:00");
     setMode("edit");
 
     if (specialties.length === 0) {
@@ -244,6 +242,7 @@ function DoctorProfile() {
         ...payload,
         ...(photoUrl ? { photoUrl } : {}),
         availableDays: WEEKDAYS.filter((day) => selectedDays.has(day.dayOfWeek)).map((day) => day.key),
+        workingHours: { from: workingFrom, to: workingTo },
       });
       setDoctor(updated);
       setMode("view");
@@ -262,7 +261,7 @@ function DoctorProfile() {
 
   if (error || !doctor) {
     return (
-      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-600">
+      <div className="rounded-2xl border border-red-200 bg-red-50 p-6 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400">
         {error || "Profile not found."}
       </div>
     );
@@ -275,9 +274,9 @@ function DoctorProfile() {
     <div className="mx-auto max-w-6xl">
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm text-slate-400">
-          <span className="text-slate-500">Doctors</span>
+          <span className="text-slate-500 dark:text-slate-400">Doctors</span>
           <span className="mx-1.5">›</span>
-          <span className="font-medium text-slate-700">My Profile</span>
+          <span className="font-medium text-slate-700 dark:text-slate-200">My Profile</span>
         </p>
 
         {mode === "view" && (
@@ -292,22 +291,22 @@ function DoctorProfile() {
       </div>
 
       {successMessage && (
-        <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700">
+        <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-400">
           {successMessage}
         </p>
       )}
 
       {mode === "edit" ? (
-        <form onSubmit={handleSave} className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+        <form onSubmit={handleSave} className="space-y-6 rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
           {saveError && (
-            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-600">{saveError}</p>
+            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400">{saveError}</p>
           )}
 
           <div className="flex items-center gap-4">
             {photoUrl || doctor.photoUrl ? (
               <img src={photoUrl || doctor.photoUrl} alt="" className="h-16 w-16 rounded-full object-cover" />
             ) : (
-              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+              <span className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-700 dark:text-slate-400">
                 <UserIcon size={26} />
               </span>
             )}
@@ -315,7 +314,7 @@ function DoctorProfile() {
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300"
+                className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 transition hover:border-slate-300 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-600"
               >
                 <CameraIcon />
                 Change Photo
@@ -365,14 +364,14 @@ function DoctorProfile() {
           </div>
 
           <label className="block">
-            <span className="mb-1.5 block text-sm font-medium text-slate-700">
+            <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-400">
               Department<span className="ml-0.5 text-red-500">*</span>
             </span>
             <select
               value={form.departmentId}
               onChange={updateField("departmentId")}
-              className={`w-full rounded-lg border bg-slate-50 py-2.5 px-3.5 text-[0.925rem] text-slate-900 outline-none transition focus:border-[#2563eb] focus:bg-white focus:ring-4 focus:ring-[#2563eb]/10 ${
-                formErrors.departmentId ? "border-red-300" : "border-slate-200"
+              className={`w-full rounded-lg border bg-slate-50 py-2.5 px-3.5 text-[0.925rem] text-slate-900 outline-none transition focus:border-[#2563eb] focus:bg-white focus:ring-4 focus:ring-[#2563eb]/10 dark:bg-slate-900 dark:text-slate-200 dark:focus:bg-slate-800 ${
+                formErrors.departmentId ? "border-red-300 dark:border-red-900/60" : "border-slate-200 dark:border-slate-700"
               }`}
             >
               <option value="">Select department</option>
@@ -405,32 +404,24 @@ function DoctorProfile() {
           </div>
 
           <div>
-            <span className="mb-1.5 block text-sm font-medium text-slate-700">Working Days</span>
-            <div className="flex flex-wrap gap-2">
-              {WEEKDAYS.map((day) => {
-                const active = selectedDays.has(day.dayOfWeek);
-                return (
-                  <button
-                    key={day.key}
-                    type="button"
-                    onClick={() => toggleDay(day.dayOfWeek)}
-                    className={`rounded-lg border px-3.5 py-2 text-sm font-medium transition ${
-                      active ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 text-slate-500 hover:border-slate-300"
-                    }`}
-                  >
-                    {day.short}
-                  </button>
-                );
-              })}
-            </div>
+            <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-400">Availability</span>
+            <AvailabilityEditor
+              selectedDays={selectedDays}
+              onToggleDay={toggleDay}
+              from={workingFrom}
+              to={workingTo}
+              onFromChange={setWorkingFrom}
+              onToChange={setWorkingTo}
+              dense
+            />
           </div>
 
-          <div className="flex justify-end gap-3 border-t border-slate-100 pt-5">
+          <div className="flex justify-end gap-3 border-t border-slate-100 pt-5 dark:border-slate-700">
             <button
               type="button"
               onClick={cancelEdit}
               disabled={isSaving}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60"
+              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-50 disabled:opacity-60 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-700"
             >
               Cancel
             </button>
@@ -446,7 +437,7 @@ function DoctorProfile() {
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           <div className="space-y-6 lg:col-span-2">
-            <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+            <section className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
               <div
                 className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full opacity-70"
                 style={{
@@ -460,10 +451,10 @@ function DoctorProfile() {
                   <img
                     src={doctor.photoUrl}
                     alt={doctor.fullName}
-                    className="h-20 w-20 rounded-2xl border border-slate-100 object-cover"
+                    className="h-20 w-20 rounded-2xl border border-slate-100 object-cover dark:border-slate-700"
                   />
                 ) : (
-                  <span className="flex h-20 w-20 items-center justify-center rounded-2xl border border-slate-100 bg-slate-50 text-slate-300">
+                  <span className="flex h-20 w-20 items-center justify-center rounded-2xl border border-slate-100 bg-slate-50 text-slate-300 dark:border-slate-700 dark:bg-slate-700 dark:text-slate-500">
                     <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
                       <circle cx="12" cy="8" r="3.5" />
                       <path d="M4.75 19.5a7.25 7.25 0 0 1 14.5 0" />
@@ -472,19 +463,19 @@ function DoctorProfile() {
                 )}
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h1 className="text-lg font-bold text-slate-900">{doctor.fullName}</h1>
+                    <h1 className="text-lg font-bold text-slate-900 dark:text-slate-200">{doctor.fullName}</h1>
                     <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${statusInfo.className}`}>
                       {statusInfo.label}
                     </span>
                   </div>
-                  <p className="mt-0.5 text-sm text-slate-500">
+                  <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
                     {doctor.code} <span className="mx-1">•</span> {doctor.specialty?.name ?? "General Practice"}
                   </p>
-                  <p className="mt-0.5 text-sm text-slate-500">
+                  <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
                     {doctor.qualifications} <span className="mx-1">•</span> {doctor.title}
                   </p>
-                  <p className="mt-1.5 text-sm text-slate-600">
-                    Clinic: <span className="font-medium text-slate-800">{doctor.clinicName}</span>
+                  <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-400">
+                    Clinic: <span className="font-medium text-slate-800 dark:text-slate-200">{doctor.clinicName}</span>
                   </p>
                 </div>
               </div>
@@ -503,7 +494,7 @@ function DoctorProfile() {
                       className={`rounded-lg border px-3.5 py-2 text-sm font-medium transition ${
                         isActive
                           ? "border-blue-600 bg-blue-600 text-white"
-                          : "border-slate-200 text-slate-600 hover:border-slate-300"
+                          : "border-slate-200 text-slate-600 hover:border-slate-300 dark:border-slate-700 dark:text-slate-200 dark:hover:border-slate-600"
                       } ${schedule?.isOff && !isActive ? "text-slate-400" : ""}`}
                     >
                       {day.short}
@@ -512,11 +503,11 @@ function DoctorProfile() {
                 })}
               </div>
 
-              <div className="mt-4 rounded-lg bg-slate-50 px-4 py-3 text-sm">
+              <div className="mt-4 rounded-lg bg-slate-50 px-4 py-3 text-sm dark:bg-slate-900/50">
                 {daySchedule?.isOff ? (
                   <span className="text-slate-400">Not working on {WEEKDAYS[selectedDay].label}.</span>
                 ) : (
-                  <span className="font-medium text-slate-700">
+                  <span className="font-medium text-slate-700 dark:text-slate-200">
                     {WEEKDAYS[selectedDay].label}: {formatTime12(daySchedule?.from)} - {formatTime12(daySchedule?.to)}
                   </span>
                 )}
@@ -524,12 +515,12 @@ function DoctorProfile() {
             </SectionCard>
 
             <SectionCard title="Short Bio">
-              <p className={`text-sm leading-relaxed text-slate-600 ${bioExpanded ? "" : "line-clamp-3"}`}>{doctor.bio}</p>
+              <p className={`text-sm leading-relaxed text-slate-600 dark:text-slate-200 ${bioExpanded ? "" : "line-clamp-3"}`}>{doctor.bio}</p>
               {doctor.bio && doctor.bio.length > 160 && (
                 <button
                   type="button"
                   onClick={() => setBioExpanded((value) => !value)}
-                  className="mt-2 text-sm font-semibold text-blue-600 hover:underline"
+                  className="mt-2 text-sm font-semibold text-blue-600 hover:underline dark:text-blue-400"
                 >
                   {bioExpanded ? "See Less" : "See More"}
                 </button>
@@ -543,8 +534,8 @@ function DoctorProfile() {
                     <li key={index} className="flex gap-3">
                       <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-blue-600" />
                       <div>
-                        <p className="text-sm font-semibold text-slate-800">{item.institution}</p>
-                        <p className="text-sm text-slate-500">{item.degree}</p>
+                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">{item.institution}</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">{item.degree}</p>
                         <p className="text-xs text-slate-400">
                           {formatDate(item.from)} - {formatDate(item.to)}
                         </p>
@@ -564,10 +555,10 @@ function DoctorProfile() {
                     <li key={index} className="flex gap-3">
                       <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-amber-500" />
                       <div>
-                        <p className="text-sm font-semibold text-slate-800">
+                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                           {item.title} {item.year && <span className="font-normal text-slate-400">({item.year})</span>}
                         </p>
-                        <p className="text-sm text-slate-500">{item.description}</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">{item.description}</p>
                       </div>
                     </li>
                   ))}
@@ -584,10 +575,10 @@ function DoctorProfile() {
                     <li key={index} className="flex gap-3">
                       <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-emerald-500" />
                       <div>
-                        <p className="text-sm font-semibold text-slate-800">
+                        <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
                           {item.name} {item.year && <span className="font-normal text-slate-400">({item.year})</span>}
                         </p>
-                        <p className="text-sm text-slate-500">{item.description}</p>
+                        <p className="text-sm text-slate-500 dark:text-slate-400">{item.description}</p>
                       </div>
                     </li>
                   ))}
@@ -600,7 +591,7 @@ function DoctorProfile() {
 
           <aside className="space-y-6">
             <SectionCard title="About">
-              <div className="divide-y divide-slate-100">
+              <div className="divide-y divide-slate-100 dark:divide-slate-700">
                 <InfoRow icon={<BadgeIcon size={16} />} label="Medical Licence Number" value={doctor.licenseNumber} />
                 <InfoRow icon={<PhoneIcon />} label="Phone Number" value={doctor.phone} />
                 <InfoRow icon={<MailIcon />} label="Email Address" value={doctor.email} />

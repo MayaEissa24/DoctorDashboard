@@ -13,7 +13,7 @@ function FormField({
 
   return (
     <label className={`block ${wrapperClassName}`}>
-      <span className="mb-1.5 block text-sm font-medium text-slate-700">
+      <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-400">
         {label}
         {required && (
           <span className="ml-0.5 text-red-500" aria-hidden="true">
@@ -34,9 +34,9 @@ function FormField({
         <Field
           rows={multiline ? rows : undefined}
           required={required}
-          className={`w-full rounded-lg border bg-slate-50 py-2.5 text-[0.925rem] text-slate-900 outline-none transition placeholder:text-slate-400 focus:bg-white focus:border-[#2563eb] focus:ring-4 focus:ring-[#2563eb]/10 ${
+          className={`w-full rounded-lg border bg-slate-50 py-2.5 text-[0.925rem] text-slate-900 outline-none transition placeholder:text-slate-400 focus:bg-white focus:border-[#2563eb] focus:ring-4 focus:ring-[#2563eb]/10 dark:bg-slate-900 dark:text-slate-200 dark:placeholder:text-slate-500 dark:focus:bg-slate-800 ${
             icon ? "pl-10" : "pl-3.5"
-          } ${rightElement ? "pr-10" : "pr-3.5"} ${error ? "border-red-300" : "border-slate-200"} ${
+          } ${rightElement ? "pr-10" : "pr-3.5"} ${error ? "border-red-300 dark:border-red-900/60" : "border-slate-200 dark:border-slate-700"} ${
             multiline ? "resize-none" : ""
           }`}
           {...props}

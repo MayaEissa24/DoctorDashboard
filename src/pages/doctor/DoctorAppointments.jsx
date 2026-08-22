@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { cancelAppointment, getDoctorAppointments } from "../../api/appointment.api";
-import AppointmentRow from "../../components/doctor/AppointmentRow";
+import AppointmentRow, { APPOINTMENT_GRID_COLS } from "../../components/doctor/AppointmentRow";
 import CancelAppointmentModal from "../../components/doctor/CancelAppointmentModal";
 
 const STATUS_OPTIONS = [
@@ -15,35 +16,48 @@ const STATUS_OPTIONS = [
 
 function DoctorAppointments() {
   const [filters, setFilters] = useState({ date: "", status: "" });
-  const [appointments, setAppointments] = useState([]);
-  const [status, setStatus] = useState("loading");
-  const [error, setError] = useState("");
-
+  const [page, setPage] = useState(1);
   const [cancelTarget, setCancelTarget] = useState(null);
-  const [isCancelling, setIsCancelling] = useState(false);
   const [cancelError, setCancelError] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
-  const load = useCallback(async () => {
-    setStatus("loading");
-    setError("");
+  const queryClient = useQueryClient();
 
-    try {
-      const { data } = await getDoctorAppointments(filters);
-      setAppointments(data ?? []);
-      setStatus("success");
-    } catch (err) {
-      setError(err.response?.data?.message || "We couldn't load your appointments. Please try again.");
-      setStatus("error");
-    }
-  }, [filters]);
+  const { data, status, error, refetch } = useQuery({
+    queryKey: ["doctor-appointments", filters, page],
+    queryFn: async () => {
+      const { data: result } = await getDoctorAppointments({ ...filters, page });
+      return result;
+    },
+  });
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  const appointments = data ?? [];
+  const meta = data?.meta ?? null;
+
+  const cancelMutation = useMutation({
+    mutationFn: (id) => cancelAppointment(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["doctor-appointments"] });
+      queryClient.invalidateQueries({ queryKey: ["doctor-dashboard"] });
+      setCancelTarget(null);
+      setSuccessMessage("Appointment cancelled.");
+      setTimeout(() => setSuccessMessage(""), 3000);
+    },
+    onError: (err) => {
+      setCancelError(err.response?.data?.message || "Unable to cancel this appointment. Please try again.");
+    },
+  });
 
   function updateFilter(field) {
-    return (event) => setFilters((prev) => ({ ...prev, [field]: event.target.value }));
+    return (event) => {
+      setFilters((prev) => ({ ...prev, [field]: event.target.value }));
+      setPage(1);
+    };
+  }
+
+  function clearFilters() {
+    setFilters({ date: "", status: "" });
+    setPage(1);
   }
 
   function openCancel(appointment) {
@@ -52,48 +66,35 @@ function DoctorAppointments() {
   }
 
   function closeCancel() {
-    if (isCancelling) return;
+    if (cancelMutation.isPending) return;
     setCancelTarget(null);
     setCancelError("");
   }
 
-  async function confirmCancel() {
+  function confirmCancel() {
     if (!cancelTarget) return;
-    setIsCancelling(true);
-    setCancelError("");
-
-    try {
-      const { data: updated } = await cancelAppointment(cancelTarget.id);
-      setAppointments((prev) => prev.map((item) => (item.id === updated.id ? updated : item)));
-      setCancelTarget(null);
-      setSuccessMessage("Appointment cancelled.");
-      setTimeout(() => setSuccessMessage(""), 3000);
-    } catch (err) {
-      setCancelError(err.response?.data?.message || "Unable to cancel this appointment. Please try again.");
-    } finally {
-      setIsCancelling(false);
-    }
+    cancelMutation.mutate(cancelTarget.id);
   }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-end gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <label className="block">
-          <span className="mb-1.5 block text-sm font-medium text-slate-700">Date</span>
+          <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-400">Date</span>
           <input
             type="date"
             value={filters.date}
             onChange={updateFilter("date")}
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
+            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:[color-scheme:dark] dark:focus:bg-slate-800"
           />
         </label>
 
         <label className="block">
-          <span className="mb-1.5 block text-sm font-medium text-slate-700">Status</span>
+          <span className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-400">Status</span>
           <select
             value={filters.status}
             onChange={updateFilter("status")}
-            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10"
+            className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-500/10 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:focus:bg-slate-800"
           >
             {STATUS_OPTIONS.map((option) => (
               <option key={option.value} value={option.value}>
@@ -106,8 +107,8 @@ function DoctorAppointments() {
         {(filters.date || filters.status) && (
           <button
             type="button"
-            onClick={() => setFilters({ date: "", status: "" })}
-            className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-50"
+            onClick={clearFilters}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-500 transition hover:bg-slate-50 dark:border-slate-700 dark:text-slate-400 dark:hover:bg-slate-700"
           >
             Clear Filters
           </button>
@@ -115,23 +116,23 @@ function DoctorAppointments() {
       </div>
 
       {successMessage && (
-        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700">
+        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-400">
           {successMessage}
         </p>
       )}
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-        {status === "loading" && (
+      <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
+        {status === "pending" && (
           <div className="flex h-40 items-center justify-center text-sm text-slate-400">Loading appointments...</div>
         )}
 
         {status === "error" && (
-          <div className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-600">
-            <p>{error}</p>
+          <div className="rounded-lg border border-red-200 bg-red-50 p-5 text-sm text-red-600 dark:border-red-900/50 dark:bg-red-950/20 dark:text-red-400">
+            <p>{error?.response?.data?.message || "We couldn't load your appointments. Please try again."}</p>
             <button
               type="button"
-              onClick={load}
-              className="mt-3 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50"
+              onClick={() => refetch()}
+              className="mt-3 rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-900/50 dark:bg-slate-800 dark:hover:bg-red-950/30"
             >
               Try Again
             </button>
@@ -139,23 +140,68 @@ function DoctorAppointments() {
         )}
 
         {status === "success" && appointments.length === 0 && (
-          <p className="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm text-slate-400">
+          <p className="rounded-lg bg-slate-50 px-4 py-8 text-center text-sm text-slate-400 dark:bg-slate-900/50">
             No appointments match your filters.
           </p>
         )}
 
         {status === "success" && appointments.length > 0 && (
           <div>
-            {appointments.map((appointment) => (
-              <AppointmentRow key={appointment.id} appointment={appointment} onCancel={openCancel} />
-            ))}
+            <div className="overflow-x-auto">
+              <div className="min-w-[38rem]">
+                <div
+                  className={`grid ${APPOINTMENT_GRID_COLS} items-center gap-4 border-b border-slate-200 pb-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:border-slate-700 dark:text-slate-500`}
+                >
+                  <span aria-hidden="true" />
+                  <span>Patient</span>
+                  <span>Date &amp; Time</span>
+                  <span>Status</span>
+                  <span>Actions</span>
+                </div>
+                {appointments.map((appointment) => (
+                  <AppointmentRow key={appointment.id} appointment={appointment} onCancel={openCancel} />
+                ))}
+              </div>
+            </div>
+
+            {meta && meta.totalPages > 1 && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4 dark:border-slate-700">
+                <p className="text-xs text-slate-400">
+                  Showing {(meta.page - 1) * meta.limit + 1}
+                  {"–"}
+                  {Math.min(meta.page * meta.limit, meta.total)} of {meta.total} appointments
+                </p>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+                    disabled={!meta.hasPrev}
+                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700"
+                  >
+                    Previous
+                  </button>
+                  <span className="text-sm text-slate-500 dark:text-slate-400">
+                    Page {meta.page} of {meta.totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPage((prev) => prev + 1)}
+                    disabled={!meta.hasNext}
+                    className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-700"
+                  >
+                    Next
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </section>
 
       <CancelAppointmentModal
         appointment={cancelTarget}
-        isSubmitting={isCancelling}
+        isSubmitting={cancelMutation.isPending}
         error={cancelError}
         onConfirm={confirmCancel}
         onClose={closeCancel}

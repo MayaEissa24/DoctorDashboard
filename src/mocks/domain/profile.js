@@ -64,11 +64,19 @@ export function applyDoctorUpdates(schema, doctor, user, body) {
   doctor.update(updates);
 
   if (Array.isArray(body.availableDays) || Array.isArray(body.week)) {
+    const globalFrom = body.workingHours?.from;
+    const globalTo = body.workingHours?.to;
+
     const week = body.week ?? WEEK_DAYS.map((day) => {
       const selected = body.availableDays.some((value) =>
         String(value).toLowerCase() === day.key || Number(value) === day.dayOfWeek,
       );
-      return { dayOfWeek: day.dayOfWeek, isOff: !selected };
+      return {
+        dayOfWeek: day.dayOfWeek,
+        isOff: !selected,
+        from: selected ? globalFrom : undefined,
+        to: selected ? globalTo : undefined,
+      };
     });
 
     week.forEach((item) => {
