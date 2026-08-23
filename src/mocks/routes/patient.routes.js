@@ -1,4 +1,4 @@
-import { photoFromName } from "../domain/profile";
+﻿import { photoFromName } from "../domain/profile";
 import { paginate } from "../utils/pagination";
 import { getQuery, requireJsonBody } from "../utils/http";
 import { withGuards } from "../utils/handlers";
@@ -61,6 +61,7 @@ export function registerPatientRoutes(server) {
         }
 
         const { fullName, name, email, phone = "", gender = "unspecified", dateOfBirth, address = "", photoUrl } = parsed.body;
+        const { bloodGroup = "", emergencyContactName = "", emergencyContactPhone = "" } = parsed.body;
         const displayName = (fullName || name || "").trim();
         const errors = {};
         if (!displayName) errors.fullName = "Full name is required";
@@ -76,6 +77,9 @@ export function registerPatientRoutes(server) {
           dateOfBirth: dateOfBirth || null,
           address,
           photoUrl: photoUrl || photoFromName(displayName),
+          bloodGroup,
+          emergencyContactName,
+          emergencyContactPhone,
         });
 
         return created(serializePatient(patient));
@@ -100,7 +104,7 @@ export function registerPatientRoutes(server) {
 
         const body = parsed.body;
         const updates = {};
-        ["fullName", "email", "phone", "gender", "dateOfBirth", "address", "photoUrl"].forEach((key) => {
+        ["fullName", "email", "phone", "gender", "dateOfBirth", "address", "photoUrl", "bloodGroup", "emergencyContactName", "emergencyContactPhone"].forEach((key) => {
           if (body[key] !== undefined) updates[key] = body[key];
         });
         if (body.name) updates.fullName = body.name;

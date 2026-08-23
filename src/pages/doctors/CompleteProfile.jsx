@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { getDoctorProfile, getSpecialties, updateDoctorProfile } from "../../api/doctor.api";
 import { useAuth } from "../../auth/useAuth";
 import AvailabilityEditor from "../../components/doctor/AvailabilityEditor";
+import Checkbox from "../../components/common/Checkbox";
 import FormField from "../auth/FormField";
 import { MailIcon, MapPinIcon, UserIcon } from "../auth/icons";
 import { WEEKDAYS } from "../../utils/weekdays";
@@ -49,6 +50,12 @@ const CameraIcon = () => (
   </svg>
 );
 
+const TrashIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-9 0 1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12" />
+  </svg>
+);
+
 function SectionDivider({ title }) {
   return (
     <div className="mb-4 mt-8 border-t border-slate-100 pt-6 first:mt-0 first:border-t-0 first:pt-0">
@@ -76,6 +83,7 @@ function CompleteProfile() {
     lng: "",
   });
   const [photoUrl, setPhotoUrl] = useState("");
+  const [photoRemoved, setPhotoRemoved] = useState(false);
   const [selectedDays, setSelectedDays] = useState(new Set());
   const [workingFrom, setWorkingFrom] = useState("09:00");
   const [workingTo, setWorkingTo] = useState("17:00");
@@ -108,6 +116,7 @@ function CompleteProfile() {
           lat: doctor.lat ?? "",
           lng: doctor.lng ?? "",
         });
+        setPhotoUrl(doctor.photoUrl ?? "");
         const workingDays = (doctor.availableDays ?? []).filter((day) => !day.isOff);
         setSelectedDays(new Set(workingDays.map((day) => day.dayOfWeek)));
         const referenceSchedule = workingDays[0];
@@ -147,8 +156,17 @@ function CompleteProfile() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = () => setPhotoUrl(reader.result);
+    reader.onload = () => {
+      setPhotoUrl(reader.result);
+      setPhotoRemoved(false);
+    };
     reader.readAsDataURL(file);
+  }
+
+  function handleRemovePhoto() {
+    setPhotoUrl("");
+    setPhotoRemoved(true);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   async function handleSubmit(event) {
@@ -181,7 +199,7 @@ function CompleteProfile() {
     try {
       await updateDoctorProfile({
         ...payload,
-        ...(photoUrl ? { photoUrl } : {}),
+        ...(photoUrl ? { photoUrl } : photoRemoved ? { photoUrl: null } : {}),
         availableDays: WEEKDAYS.filter((day) => selectedDays.has(day.dayOfWeek)).map((day) => day.key),
         workingHours: { from: workingFrom, to: workingTo },
         hasCompletedProfile: true,
@@ -224,7 +242,7 @@ function CompleteProfile() {
               <UserIcon size={26} />
             </span>
           )}
-          <div>
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
@@ -233,6 +251,16 @@ function CompleteProfile() {
               <CameraIcon />
               Upload Photo
             </button>
+            {photoUrl && (
+              <button
+                type="button"
+                onClick={handleRemovePhoto}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50"
+              >
+                <TrashIcon />
+                Remove
+              </button>
+            )}
             <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
           </div>
         </div>
@@ -367,18 +395,16 @@ function CompleteProfile() {
           onToChange={setWorkingTo}
         />
 
-        <label className="mt-6 flex items-start gap-2.5 text-sm text-slate-600">
-          <input
-            type="checkbox"
-            className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#2563eb] focus:ring-[#2563eb]"
-            checked={acceptedTerms}
-            onChange={(event) => setAcceptedTerms(event.target.checked)}
-          />
+        <Checkbox
+          checked={acceptedTerms}
+          onChange={(event) => setAcceptedTerms(event.target.checked)}
+          className="mt-6 items-start gap-2.5"
+        >
           <span>
             I agree to the <span className="font-medium text-[#2563eb]">Terms of Service</span> &{" "}
             <span className="font-medium text-[#2563eb]">Privacy Policy</span>
           </span>
-        </label>
+        </Checkbox>
 
         <button
           type="submit"

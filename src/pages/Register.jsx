@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { register } from "../api/auth.api";
+import Checkbox from "../components/common/Checkbox";
 import FormField from "./auth/FormField";
 import { validateRegisterField } from "./auth/validation";
 import {
@@ -233,13 +234,11 @@ function Register() {
         />
 
         <div>
-          <label className="flex items-start gap-2.5 text-sm text-slate-600">
-            <input
-              type="checkbox"
-              className="mt-0.5 h-4 w-4 rounded border-slate-300 text-[#2563eb] focus:ring-[#2563eb]"
-              checked={form.acceptedTerms}
-              onChange={updateField("acceptedTerms")}
-            />
+          <Checkbox
+            checked={form.acceptedTerms}
+            onChange={updateField("acceptedTerms")}
+            className="items-start gap-2.5"
+          >
             <span>
               I agree to the <span className="font-medium text-[#2563eb]">Terms of Service</span> &{" "}
               <span className="font-medium text-[#2563eb]">Privacy Policy</span>
@@ -247,7 +246,7 @@ function Register() {
                 *
               </span>
             </span>
-          </label>
+          </Checkbox>
           {errors.acceptedTerms && (
             <span className="mt-1.5 block text-xs font-medium text-red-500">{errors.acceptedTerms}</span>
           )}

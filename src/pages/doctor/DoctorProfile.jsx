@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+﻿import { useEffect, useRef, useState } from "react";
 import { getDoctorProfile, getSpecialties, updateDoctorProfile } from "../../api/doctor.api";
 import AvailabilityEditor from "../../components/doctor/AvailabilityEditor";
 import { BadgeIcon, ClockIcon, MapPinIcon } from "../../components/layout/nav-icons";
+import { useAuth } from "../../auth/useAuth";
 import FormField from "../auth/FormField";
 import { UserIcon } from "../auth/icons";
 import { WEEKDAYS } from "../../utils/weekdays";
@@ -51,6 +52,12 @@ const CameraIcon = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" />
     <circle cx="12" cy="13.5" r="3.5" />
+  </svg>
+);
+
+const TrashIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-9 0 1 12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1l1-12" />
   </svg>
 );
 
@@ -125,6 +132,7 @@ function buildFormFromDoctor(doctor) {
 }
 
 function DoctorProfile() {
+  const { updateUser } = useAuth();
   const [doctor, setDoctor] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -135,6 +143,7 @@ function DoctorProfile() {
   const [specialties, setSpecialties] = useState([]);
   const [form, setForm] = useState(null);
   const [photoUrl, setPhotoUrl] = useState("");
+  const [photoRemoved, setPhotoRemoved] = useState(false);
   const [selectedDays, setSelectedDays] = useState(new Set());
   const [workingFrom, setWorkingFrom] = useState("09:00");
   const [workingTo, setWorkingTo] = useState("17:00");
@@ -172,6 +181,7 @@ function DoctorProfile() {
     setFormErrors({});
     setForm(buildFormFromDoctor(doctor));
     setPhotoUrl("");
+    setPhotoRemoved(false);
     const workingDays = (doctor.availableDays ?? []).filter((day) => !day.isOff);
     setSelectedDays(new Set(workingDays.map((day) => day.dayOfWeek)));
     const referenceSchedule = workingDays[0];
@@ -213,8 +223,17 @@ function DoctorProfile() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = () => setPhotoUrl(reader.result);
+    reader.onload = () => {
+      setPhotoUrl(reader.result);
+      setPhotoRemoved(false);
+    };
     reader.readAsDataURL(file);
+  }
+
+  function handleRemovePhoto() {
+    setPhotoUrl("");
+    setPhotoRemoved(true);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   async function handleSave(event) {
@@ -240,11 +259,12 @@ function DoctorProfile() {
     try {
       const { data: updated } = await updateDoctorProfile({
         ...payload,
-        ...(photoUrl ? { photoUrl } : {}),
+        ...(photoUrl ? { photoUrl } : photoRemoved ? { photoUrl: null } : {}),
         availableDays: WEEKDAYS.filter((day) => selectedDays.has(day.dayOfWeek)).map((day) => day.key),
         workingHours: { from: workingFrom, to: workingTo },
       });
       setDoctor(updated);
+      updateUser({ photoUrl: updated.photoUrl, fullName: updated.fullName });
       setMode("view");
       setSuccessMessage("Profile updated.");
       setTimeout(() => setSuccessMessage(""), 3000);
@@ -275,7 +295,7 @@ function DoctorProfile() {
       <div className="mb-4 flex items-center justify-between">
         <p className="text-sm text-slate-400">
           <span className="text-slate-500 dark:text-slate-400">Doctors</span>
-          <span className="mx-1.5">›</span>
+          <span className="mx-1.5">â€º</span>
           <span className="font-medium text-slate-700 dark:text-slate-200">My Profile</span>
         </p>
 
@@ -303,14 +323,14 @@ function DoctorProfile() {
           )}
 
           <div className="flex items-center gap-4">
-            {photoUrl || doctor.photoUrl ? (
+            {!photoRemoved && (photoUrl || doctor.photoUrl) ? (
               <img src={photoUrl || doctor.photoUrl} alt="" className="h-16 w-16 rounded-full object-cover" />
             ) : (
               <span className="flex h-16 w-16 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-700 dark:text-slate-400">
                 <UserIcon size={26} />
               </span>
             )}
-            <div>
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
@@ -319,6 +339,16 @@ function DoctorProfile() {
                 <CameraIcon />
                 Change Photo
               </button>
+              {!photoRemoved && (photoUrl || doctor.photoUrl) && (
+                <button
+                  type="button"
+                  onClick={handleRemovePhoto}
+                  className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:border-red-200 hover:bg-red-50 dark:border-slate-700 dark:hover:border-red-900/50 dark:hover:bg-red-950/30"
+                >
+                  <TrashIcon />
+                  Remove
+                </button>
+              )}
               <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
             </div>
           </div>
@@ -469,10 +499,10 @@ function DoctorProfile() {
                     </span>
                   </div>
                   <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-                    {doctor.code} <span className="mx-1">•</span> {doctor.specialty?.name ?? "General Practice"}
+                    {doctor.code} <span className="mx-1">â€¢</span> {doctor.specialty?.name ?? "General Practice"}
                   </p>
                   <p className="mt-0.5 text-sm text-slate-500 dark:text-slate-400">
-                    {doctor.qualifications} <span className="mx-1">•</span> {doctor.title}
+                    {doctor.qualifications} <span className="mx-1">â€¢</span> {doctor.title}
                   </p>
                   <p className="mt-1.5 text-sm text-slate-600 dark:text-slate-400">
                     Clinic: <span className="font-medium text-slate-800 dark:text-slate-200">{doctor.clinicName}</span>
@@ -622,3 +652,7 @@ function DoctorProfile() {
 }
 
 export default DoctorProfile;
+
+
+
+

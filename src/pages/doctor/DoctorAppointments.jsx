@@ -1,8 +1,7 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { cancelAppointment, getDoctorAppointments } from "../../api/appointment.api";
+import { getDoctorAppointments } from "../../api/appointment.api";
 import AppointmentRow, { APPOINTMENT_GRID_COLS } from "../../components/doctor/AppointmentRow";
-import CancelAppointmentModal from "../../components/doctor/CancelAppointmentModal";
 
 const STATUS_OPTIONS = [
   { value: "", label: "All Statuses" },
@@ -17,11 +16,6 @@ const STATUS_OPTIONS = [
 function DoctorAppointments() {
   const [filters, setFilters] = useState({ date: "", status: "" });
   const [page, setPage] = useState(1);
-  const [cancelTarget, setCancelTarget] = useState(null);
-  const [cancelError, setCancelError] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
-
-  const queryClient = useQueryClient();
 
   const { data, status, error, refetch } = useQuery({
     queryKey: ["doctor-appointments", filters, page],
@@ -34,20 +28,6 @@ function DoctorAppointments() {
   const appointments = data ?? [];
   const meta = data?.meta ?? null;
 
-  const cancelMutation = useMutation({
-    mutationFn: (id) => cancelAppointment(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["doctor-appointments"] });
-      queryClient.invalidateQueries({ queryKey: ["doctor-dashboard"] });
-      setCancelTarget(null);
-      setSuccessMessage("Appointment cancelled.");
-      setTimeout(() => setSuccessMessage(""), 3000);
-    },
-    onError: (err) => {
-      setCancelError(err.response?.data?.message || "Unable to cancel this appointment. Please try again.");
-    },
-  });
-
   function updateFilter(field) {
     return (event) => {
       setFilters((prev) => ({ ...prev, [field]: event.target.value }));
@@ -58,22 +38,6 @@ function DoctorAppointments() {
   function clearFilters() {
     setFilters({ date: "", status: "" });
     setPage(1);
-  }
-
-  function openCancel(appointment) {
-    setCancelError("");
-    setCancelTarget(appointment);
-  }
-
-  function closeCancel() {
-    if (cancelMutation.isPending) return;
-    setCancelTarget(null);
-    setCancelError("");
-  }
-
-  function confirmCancel() {
-    if (!cancelTarget) return;
-    cancelMutation.mutate(cancelTarget.id);
   }
 
   return (
@@ -115,12 +79,6 @@ function DoctorAppointments() {
         )}
       </div>
 
-      {successMessage && (
-        <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-400">
-          {successMessage}
-        </p>
-      )}
-
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         {status === "pending" && (
           <div className="flex h-40 items-center justify-center text-sm text-slate-400">Loading appointments...</div>
@@ -159,7 +117,7 @@ function DoctorAppointments() {
                   <span>Actions</span>
                 </div>
                 {appointments.map((appointment) => (
-                  <AppointmentRow key={appointment.id} appointment={appointment} onCancel={openCancel} />
+                  <AppointmentRow key={appointment.id} appointment={appointment} showActions />
                 ))}
               </div>
             </div>
@@ -198,14 +156,6 @@ function DoctorAppointments() {
           </div>
         )}
       </section>
-
-      <CancelAppointmentModal
-        appointment={cancelTarget}
-        isSubmitting={cancelMutation.isPending}
-        error={cancelError}
-        onConfirm={confirmCancel}
-        onClose={closeCancel}
-      />
     </div>
   );
 }

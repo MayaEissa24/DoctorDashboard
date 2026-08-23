@@ -36,6 +36,36 @@ body {
   animation: auth-in 0.45s ease-out both;
 }
 
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) translateX(0);
+  }
+}
+
+@keyframes toast-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-8px) translateX(16px);
+  }
+}
+
+.animate-toast-in {
+  animation: toast-in 0.35s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-toast-out {
+  animation: toast-out 0.25s ease-in both;
+}
+
 // Chrome forces its own background on autofilled fields via a UA style that
 // only `box-shadow`/`-webkit-text-fill-color` can override (`background`
 // itself is ignored). The huge inset shadow paints over it; the long

@@ -1,3 +1,7 @@
+﻿import { useState } from "react";
+import AppointmentDetailsModal from "./AppointmentDetailsModal";
+import AppointmentActionsMenu from "./AppointmentActionsMenu";
+
 const STATUS_STYLES = {
   scheduled: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300",
   confirmed: "bg-blue-50 text-blue-600 dark:bg-blue-950/40 dark:text-blue-400",
@@ -7,18 +11,25 @@ const STATUS_STYLES = {
   rescheduled: "bg-purple-50 text-purple-600 dark:bg-purple-950/40 dark:text-purple-400",
 };
 
-const CANCELLABLE_STATUSES = ["scheduled", "confirmed", "checked_in", "rescheduled"];
+export const APPOINTMENT_GRID_COLS = "grid-cols-[2.25rem_minmax(10rem,1fr)_9rem_7rem_5rem]";
+export const APPOINTMENT_GRID_COLS_NO_ACTIONS = "grid-cols-[2.25rem_minmax(10rem,1fr)_9rem_7rem]";
 
-export const APPOINTMENT_GRID_COLS = "grid-cols-[2.25rem_minmax(10rem,1fr)_9rem_7rem_5.5rem]";
-const APPOINTMENT_GRID_COLS_NO_ACTIONS = "grid-cols-[2.25rem_minmax(10rem,1fr)_9rem_7rem]";
+function EyeIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
 
-function AppointmentRow({ appointment, onCancel }) {
+function AppointmentRow({ appointment, showActions = false }) {
+  const [showDetails, setShowDetails] = useState(false);
   const patient = appointment.patient;
-  const canCancel = CANCELLABLE_STATUSES.includes(appointment.status);
 
   return (
     <div
-      className={`grid ${onCancel ? APPOINTMENT_GRID_COLS : APPOINTMENT_GRID_COLS_NO_ACTIONS} items-center gap-4 border-b border-slate-100 py-4 last:border-b-0 dark:border-slate-700`}
+      className={`grid ${showActions ? APPOINTMENT_GRID_COLS : APPOINTMENT_GRID_COLS_NO_ACTIONS} items-center gap-4 border-b border-slate-100 py-4 last:border-b-0 dark:border-slate-700`}
     >
       <span className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-500 dark:bg-slate-700 dark:text-slate-300">
         #{appointment.queueNumber ?? "-"}
@@ -42,15 +53,22 @@ function AppointmentRow({ appointment, onCancel }) {
         {appointment.statusLabel ?? appointment.status}
       </span>
 
-      {onCancel && (
-        <button
-          type="button"
-          onClick={() => onCancel(appointment)}
-          disabled={!canCancel}
-          className="justify-self-start rounded-lg border border-red-200 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:border-slate-200 disabled:text-slate-300 disabled:hover:bg-transparent dark:border-red-900/50 dark:text-red-400 dark:hover:bg-red-950/30 dark:disabled:border-slate-700 dark:disabled:text-slate-600"
-        >
-          Cancel
-        </button>
+      {showActions && (
+        <div className="flex items-center gap-1 justify-self-start">
+          <button
+            type="button"
+            onClick={() => setShowDetails(true)}
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-700"
+            aria-label="View appointment details"
+          >
+            <EyeIcon />
+          </button>
+          <AppointmentActionsMenu appointment={appointment} />
+        </div>
+      )}
+
+      {showDetails && (
+        <AppointmentDetailsModal appointment={appointment} onClose={() => setShowDetails(false)} />
       )}
     </div>
   );

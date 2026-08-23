@@ -2,6 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./auth/AuthProvider";
 import { ThemeProvider } from "./theme/ThemeProvider";
+import { ToastProvider } from "./components/common/ToastProvider";
 import { queryClient } from "./queryClient";
 import ProtectedRoute from "./auth/ProtectedRoute";
 import PublicRoute from "./auth/PublicRoute";
@@ -21,45 +22,47 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
-        <BrowserRouter>
-          <AuthProvider>
-            <Routes>
-              <Route element={<PublicRoute />}>
-                <Route element={<AuthLayout />}>
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/register" element={<Register />} />
-                </Route>
-              </Route>
-
-              <Route element={<ProtectedRoute />}>
-                <Route element={<AuthLayout />}>
-                  <Route path="/onboarding/profile" element={<CompleteProfile />} />
+        <ToastProvider>
+          <BrowserRouter>
+            <AuthProvider>
+              <Routes>
+                <Route element={<PublicRoute />}>
+                  <Route element={<AuthLayout />}>
+                    <Route path="/login" element={<Login />} />
+                    <Route path="/register" element={<Register />} />
+                  </Route>
                 </Route>
 
-                <Route element={<DoctorLayout />}>
-                  <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
-                  <Route path="/doctor/appointments" element={<DoctorAppointments />} />
-                  <Route path="/doctor/patients" element={<DoctorPatients />} />
-                  <Route path="/doctor/profile" element={<DoctorProfile />} />
+                <Route element={<ProtectedRoute />}>
+                  <Route element={<AuthLayout />}>
+                    <Route path="/onboarding/profile" element={<CompleteProfile />} />
+                  </Route>
+
+                  <Route element={<DoctorLayout />}>
+                    <Route path="/doctor/dashboard" element={<DoctorDashboard />} />
+                    <Route path="/doctor/appointments" element={<DoctorAppointments />} />
+                    <Route path="/doctor/patients" element={<DoctorPatients />} />
+                    <Route path="/doctor/profile" element={<DoctorProfile />} />
+                  </Route>
+
+                  <Route element={<MainLayout />}>
+                    <Route path="/patients" element={<Patients />} />
+                    <Route path="/settings" element={<Settings />} />
+                  </Route>
+
+                  {/* Legacy paths kept working so the auth/onboarding flow's hardcoded
+                      "/dashboard" redirect target still resolves without modification. */}
+                  <Route path="/dashboard" element={<Navigate to="/doctor/dashboard" replace />} />
+                  <Route path="/appointments" element={<Navigate to="/doctor/appointments" replace />} />
+                  <Route path="/doctors/me" element={<Navigate to="/doctor/profile" replace />} />
                 </Route>
 
-                <Route element={<MainLayout />}>
-                  <Route path="/patients" element={<Patients />} />
-                  <Route path="/settings" element={<Settings />} />
-                </Route>
-
-                {/* Legacy paths kept working so the auth/onboarding flow's hardcoded
-                    "/dashboard" redirect target still resolves without modification. */}
-                <Route path="/dashboard" element={<Navigate to="/doctor/dashboard" replace />} />
-                <Route path="/appointments" element={<Navigate to="/doctor/appointments" replace />} />
-                <Route path="/doctors/me" element={<Navigate to="/doctor/profile" replace />} />
-              </Route>
-
-              <Route path="/" element={<Navigate to="/doctor/dashboard" replace />} />
-              <Route path="*" element={<Navigate to="/doctor/dashboard" replace />} />
-            </Routes>
-          </AuthProvider>
-        </BrowserRouter>
+                <Route path="/" element={<Navigate to="/doctor/dashboard" replace />} />
+                <Route path="*" element={<Navigate to="/doctor/dashboard" replace />} />
+              </Routes>
+            </AuthProvider>
+          </BrowserRouter>
+        </ToastProvider>
       </ThemeProvider>
     </QueryClientProvider>
   );

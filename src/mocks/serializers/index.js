@@ -1,4 +1,4 @@
-import { getDoctorStatus, getWorkingHours } from "../domain/doctors";
+﻿import { getDoctorStatus, getWorkingHours } from "../domain/doctors";
 import { modeLabel, statusLabel } from "../domain/status";
 import { ageFromDob, formatDateLabel, formatDateTimeLabel, formatTime12 } from "../utils/dates";
 
@@ -105,6 +105,9 @@ export function serializePatient(patient) {
     age: ageFromDob(patient.dateOfBirth),
     photoUrl: patient.photoUrl,
     address: patient.address ?? "",
+    bloodGroup: patient.bloodGroup ?? "",
+    emergencyContactName: patient.emergencyContactName ?? "",
+    emergencyContactPhone: patient.emergencyContactPhone ?? "",
     lastAppointmentDate: lastAppointment?.date ?? null,
     lastAppointmentLabel: lastAppointment ? formatDateLabel(lastAppointment.date) : null,
   };
@@ -154,3 +157,4 @@ export function serializeReview(review) {
       : null,
   };
 }
+

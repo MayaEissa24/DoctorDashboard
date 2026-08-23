@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { login } from "../api/auth.api";
 import { useAuth } from "../auth/useAuth";
+import Checkbox from "../components/common/Checkbox";
+import { useToast } from "../components/common/useToast";
 import FormField from "./auth/FormField";
 import { validateLoginField } from "./auth/validation";
 import { EyeIcon, EyeOffIcon, LockIcon, MailIcon } from "./auth/icons";
@@ -12,8 +14,10 @@ function Login() {
   const { signIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { showToast } = useToast();
   const redirectTo = location.state?.from?.pathname ?? "/dashboard";
   const justRegistered = Boolean(location.state?.registered);
+  const hasShownRegisteredToast = useRef(false);
 
   const [form, setForm] = useState({
     email: location.state?.email ?? "",
@@ -25,6 +29,13 @@ function Login() {
   const [errors, setErrors] = useState({});
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (justRegistered && !hasShownRegisteredToast.current) {
+      hasShownRegisteredToast.current = true;
+      showToast("Account created! Please sign in to continue.", { type: "success" });
+    }
+  }, [justRegistered, showToast]);
 
   function updateField(field) {
     return (event) => {
@@ -87,12 +98,6 @@ function Login() {
         </p>
       </header>
 
-      {justRegistered && !formError && (
-        <p className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-700">
-          Account created! Please sign in to continue.
-        </p>
-      )}
-
       {formError && (
         <p className="mb-5 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-sm text-red-600">
           {formError}
@@ -137,15 +142,9 @@ function Login() {
         />
 
         <div className="flex items-center justify-between text-sm">
-          <label className="flex items-center gap-2 text-slate-600">
-            <input
-              type="checkbox"
-              className="h-4 w-4 rounded border-slate-300 text-[#2563eb] focus:ring-[#2563eb]"
-              checked={form.rememberMe}
-              onChange={updateField("rememberMe")}
-            />
+          <Checkbox checked={form.rememberMe} onChange={updateField("rememberMe")} className="items-center gap-2">
             Remember Me
-          </label>
+          </Checkbox>
           <button type="button" className="font-medium text-[#2563eb] hover:underline">
             Forgot password?
           </button>

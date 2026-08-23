@@ -1,8 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { getDoctorDashboard } from "../../api/dashboard.api";
 import StatCard from "../../components/doctor/StatCard";
-import AppointmentRow from "../../components/doctor/AppointmentRow";
+import AppointmentRow, { APPOINTMENT_GRID_COLS_NO_ACTIONS } from "../../components/doctor/AppointmentRow";
 import AppointmentStatsChart from "../../components/doctor/AppointmentStatsChart";
+import AppointmentStatusDonut from "../../components/doctor/AppointmentStatusDonut";
 import { CalendarIcon, ClockIcon, SwapIcon } from "../../components/layout/nav-icons";
 
 function IconBase({ children, size = 20 }) {
@@ -212,7 +213,18 @@ function DoctorDashboard() {
         </div>
       )}
 
-      <AppointmentStatsChart monthly={monthlyBreakdown} />
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <AppointmentStatsChart monthly={monthlyBreakdown} />
+        </div>
+        <AppointmentStatusDonut
+          confirmed={confirmedToday}
+          checkedIn={checkedInToday}
+          completed={completedToday}
+          pending={pendingToday}
+          cancelled={cancelledToday}
+        />
+      </div>
 
       <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm dark:border-slate-700 dark:bg-slate-800">
         <h2 className="mb-4 text-[15px] font-bold text-slate-900 dark:text-slate-200">Today's Appointments</h2>
@@ -222,10 +234,20 @@ function DoctorDashboard() {
             No appointments scheduled for today.
           </p>
         ) : (
-          <div>
-            {queue.map((appointment) => (
-              <AppointmentRow key={appointment.id} appointment={appointment} />
-            ))}
+          <div className="overflow-x-auto">
+            <div className="min-w-[32rem]">
+              <div
+                className={`grid ${APPOINTMENT_GRID_COLS_NO_ACTIONS} items-center gap-4 border-b border-slate-200 pb-3 text-xs font-semibold uppercase tracking-wide text-slate-400 dark:border-slate-700 dark:text-slate-500`}
+              >
+                <span aria-hidden="true" />
+                <span>Patient</span>
+                <span>Date &amp; Time</span>
+                <span>Status</span>
+              </div>
+              {queue.map((appointment) => (
+                <AppointmentRow key={appointment.id} appointment={appointment} />
+              ))}
+            </div>
           </div>
         )}
       </section>

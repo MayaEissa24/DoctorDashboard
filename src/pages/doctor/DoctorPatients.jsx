@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+﻿import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { getPatients } from "../../api/patient.api";
 import PatientRow, { PATIENT_GRID_COLS } from "../../components/doctor/PatientRow";
@@ -96,6 +96,7 @@ function DoctorPatients() {
                   <span>Patient</span>
                   <span>Contact</span>
                   <span className="text-right">Last Visit</span>
+                  <span className="text-right">Details</span>
                 </div>
                 {patients.map((patient) => (
                   <PatientRow key={patient.id} patient={patient} />
@@ -107,7 +108,7 @@ function DoctorPatients() {
               <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-4 dark:border-slate-700">
                 <p className="text-xs text-slate-400">
                   Showing {(meta.page - 1) * meta.limit + 1}
-                  {"–"}
+                  {"â€“"}
                   {Math.min(meta.page * meta.limit, meta.total)} of {meta.total} patients
                 </p>
 
@@ -142,3 +143,5 @@ function DoctorPatients() {
 }
 
 export default DoctorPatients;
+
+
