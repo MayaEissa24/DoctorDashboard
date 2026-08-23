@@ -23,3 +23,5 @@ dist-ssr
 *.sln
 *.sw?
 src/assets/doctor-suggesting-hospital-program-patient.png
+
+.vercel
